@@ -43,10 +43,8 @@ def calcBetaK(alphaK, kernelFunction, data, x, c):
 def centerK(K):
 	''' Returns centered K matrix, see K. Murphy 14.43 '''
 	l = len(K)
-	Kcentered = np.zeros((l,l))
-	for i in range(l):
-		for j in range(l):
-			Kcentered[i][j] = K[i][j] - np.mean(K[i]) + (np.sum(K)/l**2) - np.mean(K.T[j])
+	l_ones = np.ones((l, l), dtype=int) / l
+	Kcentered = K - l_ones@K-K@l_ones+l_ones@K@l_ones	
 	return Kcentered
 
 def normAlpha(alpha, lambdas):
