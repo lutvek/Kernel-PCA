@@ -54,7 +54,7 @@ def normAlpha(alpha, lambdas):
 		a /= np.sqrt(lambdas[i])
 	return alpha
 
-def calcZ(alpha, data, x, kernelFunction, c,z0):
+def calcZold(alpha, data, x, kernelFunction, c,z0):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
 	iters=0
@@ -69,12 +69,45 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 		iters +=1
 	return z
 
+def calcZ(alpha, data, x, kernelFunction, c,z0):
+	''' Equation (10), returns pre-image z for single input datapoint x '''
+	z = z0
+	iters=0
+	# calculate beta (does not change with each iteration)
+	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
+
+	while iters <10:
+		numerator = 0
+		denom = 0
+		for i, xi in enumerate(data):
+			#gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
+			gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
+			numerator += gammaI * xi
+			denom += gammaI
+		if denom > 10**-12: #handling numerical instability
+			z = numerator/denom
+			iters +=1
+		else:
+			iters =0
+			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
+			numerator = 0
+			denom = 0
+	return z
+
 def calcGammaI(alpha, i, data, x, kernelFunction, c):
 	''' returns gamma_i = sum_{k=1}^n Beta_k * alpha_i^k '''
 	gammaI = 0
 	alphaI = alpha.T[i]
 	for k, alphaKI in enumerate(alphaI):
 		gammaI += calcBetaK(alpha[k], kernelFunction, data, x, c) * alphaKI
+	return gammaI
+
+def calcGammaIOpt(alpha, i, beta):
+	''' returns gamma_i = sum_{k=1}^n beta_k * alpha_i^k '''
+	gammaI = 0
+	alphaI = alpha.T[i]
+	for k, alphaKI in enumerate(alphaI):
+		gammaI += beta[k] * alphaKI
 	return gammaI
 
 if __name__ == '__main__':

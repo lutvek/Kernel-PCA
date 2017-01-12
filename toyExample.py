@@ -118,6 +118,8 @@ def genSquareData2(points, variance):
 		X[i] += np.random.uniform(-variance, variance)
 	return X
 
+
+
 def genSquareData(points, variance):
 	''' returns 2-d array with data in a square '''
 	X = []
