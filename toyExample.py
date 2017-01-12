@@ -3,6 +3,9 @@ import math
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import kpca
+
+np.random.seed(6359)
 
 """
 
@@ -18,84 +21,19 @@ Ludvig AAberg
 
 """
 
-def gaussianKernel(x, y, c):
-	''' Returns K(x,y) where K denotes gaussian kernel '''
-	return math.exp(-(np.linalg.norm(x-y)**2) / c)
 
 
-def createK(data, kernelFunction, c):
-	''' Returns K matrix containing inner products of the data using the kernel function 
-		so that K_ij := (phi(x_i)*phi(x_j)) '''
-	l = len(data)
-	K = np.zeros((l,l))
-	for col in range(l):
-		for row in range(l):
-			K[row][col] = kernelFunction(data[row],data[col], c)
-	return K
+def genSquareData3(points, margin):
+	X = []
 
-def calcBetaK(alphaK, kernelFunction, data, x, c):
-	''' Returns the projection of x onto the eigenvector V_k '''
-	betaK = 0
-	for i,xi in enumerate(data):
-		betaK += alphaK[i]*kernelFunction(xi,x,c)
-	return betaK	
-	
-def centerK(K):
-	''' Returns centered K matrix, see K. Murphy 14.43 '''
-	l = len(K)
-	Kcentered = np.zeros((l,l))
-	for i in range(l):
-		for j in range(l):
-			Kcentered[i][j] = K[i][j] - np.mean(K[i]) + (np.sum(K)/l**2) - np.mean(K.T[j])
-	return Kcentered
-
-def normAlpha(alpha, lambdas):
-	''' Returns new alpha corresponding to normalized eigen vectors,
-		so that lambda_k(a^k * a^k) = 1 '''
-	for i,a in enumerate(alpha):
-		a /= np.sqrt(lambdas[i])
-	return alpha
-
-def calcZ(alpha, data, x, kernelFunction, c,z0):
-	''' Equation (10), returns pre-image z for single input datapoint x '''
-	z = z0
-	iters=0
-	# calculate beta (does not change with each iteration)
-	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
-
-	while iters <10:
-		numerator = 0
-		denom = 0
-		for i, xi in enumerate(data):
-			#gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
-			gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
-			numerator += gammaI * xi
-			denom += gammaI
-		if denom > 10**-12: #handling numerical instability
-			z = numerator/denom
-			iters +=1
-		else:
-			iters =0
-			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
-			numerator = 0
-			denom = 0
-	return z
-
-def calcGammaI(alpha, i, data, x, kernelFunction, c):
-	''' returns gamma_i = sum_{k=1}^n beta_k * alpha_i^k '''
-	gammaI = 0
-	alphaI = alpha.T[i]
-	for k, alphaKI in enumerate(alphaI):
-		gammaI += calcBetaK(alpha[k], kernelFunction, data, x, c) * alphaKI
-	return gammaI
-
-def calcGammaIOpt(alpha, i, beta):
-	''' returns gamma_i = sum_{k=1}^n beta_k * alpha_i^k '''
-	gammaI = 0
-	alphaI = alpha.T[i]
-	for k, alphaKI in enumerate(alphaI):
-		gammaI += beta[k] * alphaKI
-	return gammaI
+	generatedPoints = 0
+	while generatedPoints < points:
+		xCord = np.random.uniform(-1.0-margin/2, 1.0+margin/2)
+		yCord = np.random.uniform(-1.0-margin/2, 1.0+margin/2)
+		if abs(xCord) > 1-margin/2 or abs(yCord) > 1-margin/2:
+			X.append((xCord, yCord))
+			generatedPoints += 1
+	return np.array(X)
 
 def genSquareData2(points, variance):
 	''' returns 2-d array with data in a square '''
@@ -118,8 +56,6 @@ def genSquareData2(points, variance):
 		X[i] += np.random.uniform(-variance, variance)
 	return X
 
-
-
 def genSquareData(points, variance):
 	''' returns 2-d array with data in a square '''
 	X = []
@@ -134,6 +70,30 @@ def genSquareData(points, variance):
 			X.append([side+uniNoise, offset])
 		else:
 			X.append([offset, side+uniNoise])
+
+	return np.array(X)
+
+def cherryDataSet():
+	''' cherry data for unit square '''
+	X = [[0.05,0.777],
+		[-0.025,0.775],
+		[-0.325, 0.73],
+		[-0.4, 0.6],
+		[0.775, 0.38],
+		[-0.84, 0.05],
+		[0.575, -0.14],
+		[-0.54, -0.22],
+		[0.82, -0.225],
+		[0.51, -0.29],
+		[-0.74, -0.36],
+		[0.69, -0.48],
+		[-0.275, -0.575],
+		[-0.05, -0.625],
+		[-0.125, -0.626],
+		[-0.576, -0.675],
+		[0.62, -0.8],
+		[-0.525, -0.84],
+		[-0.475, -0.85]]
 
 	return np.array(X)
 
@@ -152,7 +112,7 @@ def genGridData(points):
 if __name__ == '__main__':
 
 	# hyperparameters
-	c = 0.2
+	c = 1.0 # optimal for 4 components : 1.1
 
 	# For half-circle toy example
 	X, y = make_circles(n_samples=600, factor=.3, noise=.05)
@@ -165,18 +125,22 @@ if __name__ == '__main__':
 	print len(Xtrain)
 	# For square toy example
 
-	Xtrain = genSquareData2(20, 0.05)
-	Xtest = genGridData(20**2) 
+	Xtrain = genSquareData3(20, 0.03)
+	#XtrainMean = np.mean(Xtrain, axis=0)
+	#Xtrain -= XtrainMean
+	Xtest = genGridData(20**2)
+	#Xtest -= XtrainMean 
+
 
 	Data = Xtrain
 
 	l = len(Data)
 
 	# build K
-	K = createK(Data, gaussianKernel, c)
+	K = kpca.createK(Data, kpca.gaussianKernel, c)
 
 	# center K
-	K = centerK(K)
+	K = kpca.centerK(K)
 
 	# find eigen vectors
 	lLambda, alpha = np.linalg.eigh(K) # (3)
@@ -193,14 +157,20 @@ if __name__ == '__main__':
 	alpha=alpha[-4:]
 
 	# normalize alpha
-	alpha = normAlpha(alpha, lambdas)
+	alpha = kpca.normAlpha(alpha, lambdas)
 
 	Z =[]
 	for i in range(len(Xtest)):
-		Z.append(calcZ(alpha, Data, Xtest[i],gaussianKernel,c,Xtest[i]))
+		Z.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.gaussianKernel,c,Xtest[i]))
+
+	# Zlin = []
+	# for i in range(len(Xtest)):
+	# 	Zlin.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.linearKernel,c,Xtest[i]))
 
 	Z=np.array(Z)
+	#Zlin=np.array(Zlin)
 	plt.plot(Xtrain.T[0], Xtrain.T[1],'ro')
 	plt.plot(Z.T[0],Z.T[1],'go')
+	#plt.plot(Zlin.T[0],Zlin.T[1],'bo')
 	plt.show()
 	
