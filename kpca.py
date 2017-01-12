@@ -22,10 +22,9 @@ def gaussianKernel(x, y, c):
 	''' Returns K(x,y) where K denotes gaussian kernel '''
 	return math.exp(-(np.linalg.norm(x-y)**2) / c)
 
-
 def createK(data, kernelFunction, c):
 	''' Returns K matrix containing inner products of the data using the kernel function 
-		so that K_ij := (phi(x_i)*phi(x_j)) '''
+	so that K_ij := (phi(x_i)*phi(x_j)) '''
 	l = len(data)
 	K = np.zeros((l,l))
 	for col in range(l):
@@ -49,7 +48,7 @@ def centerK(K):
 
 def normAlpha(alpha, lambdas):
 	''' Returns new alpha corresponding to normalized eigen vectors,
-		so that lambda_k(a^k * a^k) = 1 '''
+	so that lambda_k(a^k * a^k) = 1 '''
 	for i,a in enumerate(alpha):
 		a /= np.sqrt(lambdas[i])
 	return alpha
@@ -73,10 +72,11 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
 	iters=0
+	maxIters = 1000
 	# calculate beta (does not change with each iteration)
 	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
 
-	while iters <10:
+	while iters < maxIters: # iterate until convergence
 		numerator = 0
 		denom = 0
 		for i, xi in enumerate(data):
@@ -85,13 +85,18 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 			numerator += gammaI * xi
 			denom += gammaI
 		if denom > 10**-12: #handling numerical instability
-			z = numerator/denom
-			iters +=1
+			newZ = numerator/denom
+			if np.linalg.norm(z - newZ) < 10**-8:
+				z = newZ
+				break
+			z = newZ
+			iters += 1
 		else:
 			iters =0
 			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
 			numerator = 0
 			denom = 0
+
 	return z
 
 def calcGammaI(alpha, i, data, x, kernelFunction, c):
@@ -110,23 +115,13 @@ def calcGammaIOpt(alpha, i, beta):
 		gammaI += beta[k] * alphaKI
 	return gammaI
 
-if __name__ == '__main__':
-
-	# hyperparameters
-	c = 0.5
-	z0= np.array([0,0])
-
-	#For half-circle toy example
-	X, y = make_circles(n_samples=600, factor=.3, noise=.05)
-	X = np.array([x for i,x in enumerate(X) if x[1]>0 and not y[i]])
-	Xtrain, Xtest = train_test_split(X, test_size=0.9)
-
-	Data = Xtrain
+def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
+	Data = dataTrain
 
 	l = len(Data)
 
 	# build K
-	K = createK(Data, gaussianKernel, c)
+	K = createK(Data, kernelFunction, c)
 
 	# center K
 	K = centerK(K)
@@ -142,17 +137,31 @@ if __name__ == '__main__':
 			break
 
 	# use only the 4 larges eigen values with corresponding vectors
-	lambdas=lambdas[-4:]
-	alpha=alpha[-4:]
+	lambdas=lambdas[-components:]
+	alpha=alpha[-components:]
 
 	# normalize alpha
 	alpha = normAlpha(alpha, lambdas)
 
 	Z =[]
 	for i in range(len(Xtest)):
-		Z.append(calcZ(alpha, Data, Xtest[i],gaussianKernel,c,Xtest[i]))
+		Z.append(calcZ(alpha, Data, Xtest[i],kernelFunction,c,Xtest[i]))
 
 	Z=np.array(Z)
+	return Z
+
+if __name__ == '__main__':
+
+	# hyperparameters
+	c = 0.5
+
+	#For half-circle toy example
+	X, y = make_circles(n_samples=600, factor=.3, noise=.05)
+	X = np.array([x for i,x in enumerate(X) if x[1]>0 and not y[i]])
+	Xtrain, Xtest = train_test_split(X, test_size=0.9)
+
+	Z=kernelPCADeNoise(gaussianKernel, c, 2, Xtrain, Xtest)
+
 	plt.plot(Xtrain.T[0], Xtrain.T[1],'ro')
 	plt.plot(Z.T[0],Z.T[1],'go')
 	plt.show()
