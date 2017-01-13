@@ -3,6 +3,7 @@ import math
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+from multiprocessing import Process, Queue
 
 """
 
@@ -72,7 +73,7 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
 	iters=0
-	maxIters = 1000
+	maxIters = 30
 	# calculate beta (does not change with each iteration)
 	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
 
@@ -86,17 +87,21 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 			denom += gammaI
 		if denom > 10**-12: #handling numerical instability
 			newZ = numerator/denom
-			if np.linalg.norm(z - newZ) < 10**-8:
+			"""
+			if np.linalg.norm(z - newZ) < 10**-8: # convergence definition
 				z = newZ
 				break
+			"""
 			z = newZ
 			iters += 1
 		else:
+			print "restarted point"
 			iters =0
 			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
 			numerator = 0
 			denom = 0
 
+	print "iters:", iters
 	return z
 
 def calcGammaI(alpha, i, data, x, kernelFunction, c):
@@ -137,15 +142,16 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 			break
 
 	# use only the 4 larges eigen values with corresponding vectors
-	lambdas=lambdas[-components:]
-	alpha=alpha[-components:]
+	lambdas= lambdas[-components:]
+	alpha= alpha[-components:]
 
 	# normalize alpha
 	alpha = normAlpha(alpha, lambdas)
 
 	Z =[]
-	for i in range(len(Xtest)):
-		Z.append(calcZ(alpha, Data, Xtest[i],kernelFunction,c,Xtest[i]))
+	for i in range(len(dataTest)):
+		print i
+		Z.append(calcZ(alpha, Data, dataTest[i],kernelFunction,c,dataTest[i]))
 
 	Z=np.array(Z)
 	return Z
@@ -160,7 +166,7 @@ if __name__ == '__main__':
 	X = np.array([x for i,x in enumerate(X) if x[1]>0 and not y[i]])
 	Xtrain, Xtest = train_test_split(X, test_size=0.9)
 
-	Z=kernelPCADeNoise(gaussianKernel, c, 2, Xtrain, Xtest)
+	Z=kernelPCADeNoise(gaussianKernel, c, 1, Xtrain, Xtest)
 
 	plt.plot(Xtrain.T[0], Xtrain.T[1],'ro')
 	plt.plot(Z.T[0],Z.T[1],'go')

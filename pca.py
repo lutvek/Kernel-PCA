@@ -25,8 +25,23 @@ def calcC(data):
 	dim = len(data[0])
 	C = np.zeros((dim,dim))
 	for x in data:
-		C += vectorMult(x,x)
+		C += vectorMult(x,x) #np.dot(x.reshape(2,1),x.reshape(1,2))#
 	return C/len(data)
+
+def pcaDeNoise(Xtrain, Xtest):
+
+	C = calcC(Xtrain)
+	lambdas, eigenvectors = np.linalg.eigh(C)
+	lambdas=lambdas[-1]
+	eigenvector=eigenvectors[-1]
+
+	print np.linalg.norm(eigenvector)
+
+	Z =[]
+	for x in Xtest:
+		Z.append(np.dot(x,eigenvector)*eigenvector)
+
+	return np.array(Z)
 
 
 if __name__ == '__main__':
@@ -53,11 +68,9 @@ if __name__ == '__main__':
 	lambdas=lambdas[-1]
 	eigenvector=eigenvectors[-1]
 
-	Z =[]
-	for x in Xtest:
-		Z.append(np.dot(x,eigenvector)*eigenvector)
-
-	Z=np.array(Z)
+	Z = pcaDeNoise(Data, Xtrain)
+	
+	plt.axis("equal")
 	plt.plot(Xtrain.T[0], Xtrain.T[1],'ro')
 	plt.plot(Z.T[0],Z.T[1],'go')
 	plt.show()

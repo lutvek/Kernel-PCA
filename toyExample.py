@@ -1,9 +1,12 @@
 import numpy as np 
 import math
 from sklearn.datasets import make_circles
-from sklearn.model_selection import train_test_split
+from sklearn.cross_validation import train_test_split
 import matplotlib.pyplot as plt
 import kpca
+import pca
+import seaborn as sns
+sns.set(color_codes=True)
 
 np.random.seed(6359)
 
@@ -73,30 +76,6 @@ def genSquareData(points, variance):
 
 	return np.array(X)
 
-def cherryDataSet():
-	''' cherry data for unit square '''
-	X = [[0.05,0.777],
-		[-0.025,0.775],
-		[-0.325, 0.73],
-		[-0.4, 0.6],
-		[0.775, 0.38],
-		[-0.84, 0.05],
-		[0.575, -0.14],
-		[-0.54, -0.22],
-		[0.82, -0.225],
-		[0.51, -0.29],
-		[-0.74, -0.36],
-		[0.69, -0.48],
-		[-0.275, -0.575],
-		[-0.05, -0.625],
-		[-0.125, -0.626],
-		[-0.576, -0.675],
-		[0.62, -0.8],
-		[-0.525, -0.84],
-		[-0.475, -0.85]]
-
-	return np.array(X)
-
 def genGridData(points):
 	''' returns 2-D points uniformly spread over -2 to 2 over both axis '''
 	rowPoints = int(round(math.sqrt(points)))
@@ -109,68 +88,86 @@ def genGridData(points):
 		
 	return np.array(coords)
 
+def genCircleData(points):
+	X = []
+	for i in range(points):
+		angle = np.random.uniform(0,np.pi)
+		scaling = np.random.uniform(.8,1.2)
+		if angle < np.pi/2.0:				
+			X.append((np.cos(angle)*scaling+0.5,np.sin(angle)*scaling))
+		else:
+			X.append((np.cos(angle)*scaling,np.sin(angle)*scaling))
+	return np.array(X)
+
+
 if __name__ == '__main__':
 
 	# hyperparameters
-	c = 1.0 # optimal for 4 components : 1.1
+	c = 0.54 # optimal for 4 components : 1.1
 
 	# For half-circle toy example
-	X, y = make_circles(n_samples=600, factor=.3, noise=.05)
-	X = np.array([x for i,x in enumerate(X) if x[1]>0 and not y[i]])
+	#X, y = make_circles(n_samples=400, factor=.3, noise=.05)
+	#X = np.array([x for i,x in enumerate(X) if (x[1]>0 and abs(x[0])>0.5) and not y[i]] )
 
+	X=genCircleData(300)
 	nrP = len(X)
 
-	Xtrain = X[::int(nrP/7)]
+	#normalize data
+	X -= np.mean(X,axis=0)
 
-	print len(Xtrain)
+	Xtrain = X
 	# For square toy example
 
-	Xtrain = genSquareData3(20, 0.03)
-	#XtrainMean = np.mean(Xtrain, axis=0)
-	#Xtrain -= XtrainMean
-	Xtest = genGridData(20**2)
+	Xtrain = genSquareData3(300, 0.4)
+	XtrainMean = np.mean(Xtrain, axis=0)
+	Xtrain -= XtrainMean
+	Xtest = Xtrain#genGridData(20**2)
 	#Xtest -= XtrainMean 
 
 
-	Data = Xtrain
+	# Data = Xtrain
 
-	l = len(Data)
+	# l = len(Data)
 
-	# build K
-	K = kpca.createK(Data, kpca.gaussianKernel, c)
+	# # build K
+	# K = kpca.createK(Data, kpca.gaussianKernel, c)
 
-	# center K
-	K = kpca.centerK(K)
+	# # center K
+	# K = kpca.centerK(K)
 
-	# find eigen vectors
-	lLambda, alpha = np.linalg.eigh(K) # (3)
-	lambdas = lLambda/l # /l with the notation from the paper (but not murphys) 
-	# drop negative and 0 egienvalues and their vectors
-	for i,l in enumerate(lambdas):
-		if l > 10**(-8):
-			lambdas = lambdas[i:]
-			alpha = alpha[i:]
-			break
+	# # find eigen vectors
+	# lLambda, alpha = np.linalg.eigh(K) # (3)
+	# lambdas = lLambda/l # /l with the notation from the paper (but not murphys) 
+	# # drop negative and 0 egienvalues and their vectors
+	# for i,l in enumerate(lambdas):
+	# 	if l > 10**(-8):
+	# 		lambdas = lambdas[i:]
+	# 		alpha = alpha[i:]
+	# 		break
 
-	# use only the 4 larges eigen values with corresponding vectors
-	lambdas=lambdas[-4:]
-	alpha=alpha[-4:]
+	# # use only the 4 larges eigen values with corresponding vectors
+	# lambdas=lambdas[-4:]
+	# alpha=alpha[-4:]
 
-	# normalize alpha
-	alpha = kpca.normAlpha(alpha, lambdas)
+	# # normalize alpha
+	# alpha = kpca.normAlpha(alpha, lambdas)
 
-	Z =[]
-	for i in range(len(Xtest)):
-		Z.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.gaussianKernel,c,Xtest[i]))
-
-	# Zlin = []
+	# Z =[]
 	# for i in range(len(Xtest)):
-	# 	Zlin.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.linearKernel,c,Xtest[i]))
+	# 	Z.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.gaussianKernel,c,Xtest[i]))
 
-	Z=np.array(Z)
+	# # Zlin = []
+	# # for i in range(len(Xtest)):
+	# # 	Zlin.append(kpca.calcZ(alpha, Data, Xtest[i],kpca.linearKernel,c,Xtest[i]))
+
+	# Z=np.array(Z)
 	#Zlin=np.array(Zlin)
-	plt.plot(Xtrain.T[0], Xtrain.T[1],'ro')
-	plt.plot(Z.T[0],Z.T[1],'go')
+	#Z=kpca.kernelPCADeNoise(kpca.gaussianKernel, c, 4, Xtrain, Xtest)
+	Z = pca.pcaDeNoise(Xtrain, Xtest)
+	plt.axis('equal')
+	plt.plot(Xtrain.T[0], Xtrain.T[1],'r.')
+	plt.plot(Z.T[0],Z.T[1],'bo')
+
 	#plt.plot(Zlin.T[0],Zlin.T[1],'bo')
 	plt.show()
 	
