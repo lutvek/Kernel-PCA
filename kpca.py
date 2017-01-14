@@ -4,6 +4,7 @@ from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 #from multiprocessing import Pool
+from sklearn.metrics.pairwise import rbf_kernel
 
 """
 
@@ -82,10 +83,12 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	while iters < maxIters: # iterate until convergence
 		numerator = 0
 		denom = 0
+                k = rbf_kernel(data, z.reshape(1,-1),1/c)
 		for i, xi in enumerate(data):
 			#gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
 			#gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
-			gammaI = gamma[i] * kernelFunction(z,xi,c)
+			#gammaI = gamma[i] * kernelFunction(z,xi,c)
+			gammaI = gamma[i] * k[i][0]
 			numerator += gammaI * xi
 			denom += gammaI
 		if denom > 10**-12: #handling numerical instability
@@ -98,13 +101,13 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 			z = newZ
 			iters += 1
 		else:
-			#print "restarted point"
+			print "restarted point"
 			iters =0
 			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
 			numerator = 0
 			denom = 0
 
-	#print "iters:", iters
+	print "iters:", iters
 	return z
 
 def calcGammaI(alpha, i, data, x, kernelFunction, c):
@@ -154,7 +157,7 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 
 	Z =[]
 	for i in range(len(dataTest)):
-		#print i
+		print i
 		Z.append(calcZ(alpha, Data, dataTest[i],kernelFunction,c,dataTest[i]))
 
 	Z=np.array(Z)

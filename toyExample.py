@@ -5,6 +5,7 @@ from sklearn.cross_validation import train_test_split
 import matplotlib.pyplot as plt
 import kpca
 import pca
+import time
 import seaborn as sns
 sns.set(color_codes=True)
 
@@ -162,8 +163,10 @@ if __name__ == '__main__':
 
 	# Z=np.array(Z)
 	#Zlin=np.array(Zlin)
-	#Z=kpca.kernelPCADeNoise(kpca.gaussianKernel, c, 4, Xtrain, Xtest)
-	Z = pca.pcaDeNoise(Xtrain, Xtest)
+        startTime = time.time()
+	Z=kpca.kernelPCADeNoise(kpca.gaussianKernel, c, 4, Xtrain, Xtest)
+        print 'Time taken:', time.time() - startTime
+	#Z = pca.pcaDeNoise(Xtrain, Xtest)
 	plt.axis('equal')
 	plt.plot(Xtrain.T[0], Xtrain.T[1],'r.')
 	plt.plot(Z.T[0],Z.T[1],'bo')
