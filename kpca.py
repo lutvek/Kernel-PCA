@@ -3,7 +3,7 @@ import math
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-from multiprocessing import Process, Queue
+#from multiprocessing import Pool
 
 """
 
@@ -21,7 +21,8 @@ Ludvig AAberg
 
 def gaussianKernel(x, y, c):
 	''' Returns K(x,y) where K denotes gaussian kernel '''
-	return math.exp(-(np.linalg.norm(x-y)**2) / c)
+	return math.exp(-(np.sqrt(np.dot(x-y,(x-y).conj()))**2) / c)
+	#return math.exp(-(np.linalg.norm(x-y)**2) / c)
 
 def createK(data, kernelFunction, c):
 	''' Returns K matrix containing inner products of the data using the kernel function 
@@ -76,13 +77,15 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	maxIters = 30
 	# calculate beta (does not change with each iteration)
 	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
+        gamma = [calcGammaIOpt(alpha,i,beta) for i in range(len(data))]
 
 	while iters < maxIters: # iterate until convergence
 		numerator = 0
 		denom = 0
 		for i, xi in enumerate(data):
 			#gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
-			gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
+			#gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
+			gammaI = gamma[i] * kernelFunction(z,xi,c)
 			numerator += gammaI * xi
 			denom += gammaI
 		if denom > 10**-12: #handling numerical instability
@@ -95,13 +98,13 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 			z = newZ
 			iters += 1
 		else:
-			print "restarted point"
+			#print "restarted point"
 			iters =0
 			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
 			numerator = 0
 			denom = 0
 
-	print "iters:", iters
+	#print "iters:", iters
 	return z
 
 def calcGammaI(alpha, i, data, x, kernelFunction, c):
@@ -119,6 +122,7 @@ def calcGammaIOpt(alpha, i, beta):
 	for k, alphaKI in enumerate(alphaI):
 		gammaI += beta[k] * alphaKI
 	return gammaI
+
 
 def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	Data = dataTrain
@@ -150,7 +154,7 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 
 	Z =[]
 	for i in range(len(dataTest)):
-		print i
+		#print i
 		Z.append(calcZ(alpha, Data, dataTest[i],kernelFunction,c,dataTest[i]))
 
 	Z=np.array(Z)
