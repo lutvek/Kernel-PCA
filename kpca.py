@@ -3,7 +3,7 @@ import math
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-#from multiprocessing import Pool
+from multiprocessing import Pool
 from sklearn.metrics.pairwise import rbf_kernel
 
 """
@@ -85,6 +85,9 @@ def normAlpha(alpha, lambdas):
 #		iters +=1
 #	return z
 
+def calcZWrapper(args):
+    return calcZ(*args)
+
 def calcZ(alpha, data, x, K, c,z0, idx):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
@@ -112,13 +115,13 @@ def calcZ(alpha, data, x, K, c,z0, idx):
 			z = newZ
 			iters += 1
 		else:
-			print "restarted point"
+			#print "restarted point"
 			iters =0
 			z=z0 + np.random.multivariate_normal(np.zeros(z0.size),np.identity(z0.size))
 			numerator = 0
 			denom = 0
 
-	print "iters:", iters
+	#print "iters:", iters
 	return z
 
 #def calcGammaI(alpha, i, data, x, kernelFunction, c):
@@ -167,10 +170,13 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	# normalize alpha
 	alpha = normAlpha(alpha, lambdas)
 
-	Z =[]
-	for i in range(len(dataTest)):
-		print i
-		Z.append(calcZ(alpha, Data, dataTest[i], K, c, dataTest[i], i))
+        p=Pool()
+        Z = p.map(calcZWrapper, [(alpha, Data, x, K, c, x, i) for i, x in enumerate(dataTest)])
+
+	#Z =[]
+	#for i in range(len(dataTest)):
+	#	print i
+	#	Z.append(calcZ(alpha, Data, dataTest[i], K, c, dataTest[i], i))
 
 	Z=np.array(Z)
 	return Z
