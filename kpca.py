@@ -28,18 +28,21 @@ def gaussianKernel(x, y, c):
 def createK(data, kernelFunction, c):
 	''' Returns K matrix containing inner products of the data using the kernel function 
 	so that K_ij := (phi(x_i)*phi(x_j)) '''
-	l = len(data)
-	K = np.zeros((l,l))
-	for col in range(l):
-		for row in range(l):
-			K[row][col] = kernelFunction(data[row],data[col], c)
-	return K
+        return rbf_kernel(data, gamma=1/c)
+	#l = len(data)
+	#K = np.zeros((l,l))
+	#for col in range(l):
+	#	for row in range(l):
+	#		K[row][col] = kernelFunction(data[row],data[col], c)
+	#return K
 
 def calcBetaK(alphaK, kernelFunction, data, x, c):
 	''' Returns the projection of x onto the eigenvector V_k '''
 	BetaK = 0
+        k = rbf_kernel(data, x.reshape(1,-1),1/c)
 	for i,xi in enumerate(data):
-		BetaK += alphaK[i]*kernelFunction(xi,x,c)
+		#BetaK += alphaK[i]*kernelFunction(xi,x,c)
+		BetaK += alphaK[i]*k[i][0]
 	return BetaK	
 	
 def centerK(K):
@@ -75,7 +78,7 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
 	iters=0
-	maxIters = 30
+	maxIters = 10
 	# calculate beta (does not change with each iteration)
 	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
         gamma = [calcGammaIOpt(alpha,i,beta) for i in range(len(data))]
