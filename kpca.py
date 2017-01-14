@@ -41,14 +41,16 @@ def createKOld(data, kernelFunction, c):
 	#		K[row][col] = kernelFunction(data[row],data[col], c)
 	#return K
 
-#def calcBetaKOld(alphaK, kernelFunction, data, x, c):
-#	''' Returns the projection of x onto the eigenvector V_k '''
-#	BetaK = 0
-#        kernelVals = rbf_kernel(data, x.reshape(1,-1),1/c)
-#	for i,xi in enumerate(data):
-#		#BetaK += alphaK[i]*kernelFunction(xi,x,c)
-#		BetaK += alphaK[i]*kernelVals[i][0]
-#	return BetaK	
+def calcBetaKOld(alphaK, data, x, c):
+	''' Returns the projection of x onto the eigenvector V_k '''
+	BetaK = 0
+        #print 'data.shape',data.shape
+        #print 'x.shape', x.shape
+        kernelVals = rbf_kernel(data, x.reshape(1,-1),1/c)
+	for i,xi in enumerate(data):
+		#BetaK += alphaK[i]*kernelFunction(xi,x,c)
+		BetaK += alphaK[i]*kernelVals[i][0]
+	return BetaK	
 
 def calcBetaK(alphaK, kernelVals):
 	''' Returns the projection of x onto the eigenvector V_k '''
@@ -94,7 +96,7 @@ def calcZ(alpha, data, x, K, c,z0, idx):
 	iters=0
 	maxIters = 10
 	# calculate beta, gamma (do not change with each iteration)
-	beta = [calcBetaK(aK, K[idx]) for aK in alpha]
+	beta = [calcBetaKOld(aK, data, x, c) for aK in alpha]
         gamma = [calcGammaIOpt(alpha,i,beta) for i in range(len(data))]
 
 	while iters < maxIters: # iterate until convergence
@@ -170,13 +172,13 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	# normalize alpha
 	alpha = normAlpha(alpha, lambdas)
 
-        p=Pool()
-        Z = p.map(calcZWrapper, [(alpha, Data, x, K, c, x, i) for i, x in enumerate(dataTest)])
+        #p=Pool()
+        #Z = p.map(calcZWrapper, [(alpha, Data, x, K, c, x, i) for i, x in enumerate(dataTest)])
 
-	#Z =[]
-	#for i in range(len(dataTest)):
-	#	print i
-	#	Z.append(calcZ(alpha, Data, dataTest[i], K, c, dataTest[i], i))
+	Z =[]
+	for i in range(len(dataTest)):
+		#print i
+		Z.append(calcZ(alpha, Data, dataTest[i], K, c, dataTest[i], i))
 
 	Z=np.array(Z)
 	return Z
