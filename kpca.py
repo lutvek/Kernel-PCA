@@ -25,7 +25,12 @@ def gaussianKernel(x, y, c):
 	return math.exp(-(np.sqrt(np.dot(x-y,(x-y).conj()))**2) / c)
 	#return math.exp(-(np.linalg.norm(x-y)**2) / c)
 
-def createK(data, kernelFunction, c):
+def createK(data, c):
+	''' Returns K matrix containing inner products of the data using the kernel function 
+	so that K_ij := (phi(x_i)*phi(x_j)) '''
+        return rbf_kernel(data, gamma=1/c)
+
+def createKOld(data, kernelFunction, c):
 	''' Returns K matrix containing inner products of the data using the kernel function 
 	so that K_ij := (phi(x_i)*phi(x_j)) '''
         return rbf_kernel(data, gamma=1/c)
@@ -36,13 +41,19 @@ def createK(data, kernelFunction, c):
 	#		K[row][col] = kernelFunction(data[row],data[col], c)
 	#return K
 
-def calcBetaK(alphaK, kernelFunction, data, x, c):
+#def calcBetaKOld(alphaK, kernelFunction, data, x, c):
+#	''' Returns the projection of x onto the eigenvector V_k '''
+#	BetaK = 0
+#        kernelVals = rbf_kernel(data, x.reshape(1,-1),1/c)
+#	for i,xi in enumerate(data):
+#		#BetaK += alphaK[i]*kernelFunction(xi,x,c)
+#		BetaK += alphaK[i]*kernelVals[i][0]
+#	return BetaK	
+
+def calcBetaK(alphaK, kernelVals):
 	''' Returns the projection of x onto the eigenvector V_k '''
 	BetaK = 0
-        k = rbf_kernel(data, x.reshape(1,-1),1/c)
-	for i,xi in enumerate(data):
-		#BetaK += alphaK[i]*kernelFunction(xi,x,c)
-		BetaK += alphaK[i]*k[i][0]
+        BetaK = np.sum(alphaK*kernelVals)
 	return BetaK	
 	
 def centerK(K):
@@ -59,28 +70,28 @@ def normAlpha(alpha, lambdas):
 		a /= np.sqrt(lambdas[i])
 	return alpha
 
-def calcZold(alpha, data, x, kernelFunction, c,z0):
-	''' Equation (10), returns pre-image z for single input datapoint x '''
-	z = z0
-	iters=0
-	while iters <5:
-		numerator = 0
-		denom = 0
-		for i, xi in enumerate(data):
-			gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
-			numerator += gammaI * xi
-			denom += gammaI
-		z = numerator/denom
-		iters +=1
-	return z
+#def calcZold(alpha, data, x, kernelFunction, c,z0):
+#	''' Equation (10), returns pre-image z for single input datapoint x '''
+#	z = z0
+#	iters=0
+#	while iters <5:
+#		numerator = 0
+#		denom = 0
+#		for i, xi in enumerate(data):
+#			gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
+#			numerator += gammaI * xi
+#			denom += gammaI
+#		z = numerator/denom
+#		iters +=1
+#	return z
 
-def calcZ(alpha, data, x, kernelFunction, c,z0):
+def calcZ(alpha, data, x, K, c,z0, idx):
 	''' Equation (10), returns pre-image z for single input datapoint x '''
 	z = z0
 	iters=0
 	maxIters = 10
-	# calculate beta (does not change with each iteration)
-	beta = [calcBetaK(aK, kernelFunction, data, x, c) for aK in alpha]
+	# calculate beta, gamma (do not change with each iteration)
+	beta = [calcBetaK(aK, K[idx]) for aK in alpha]
         gamma = [calcGammaIOpt(alpha,i,beta) for i in range(len(data))]
 
 	while iters < maxIters: # iterate until convergence
@@ -88,9 +99,6 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 		denom = 0
                 k = rbf_kernel(data, z.reshape(1,-1),1/c)
 		for i, xi in enumerate(data):
-			#gammaI = calcGammaI(alpha, i, data, x, kernelFunction, c) * kernelFunction(z,xi,c)
-			#gammaI = calcGammaIOpt(alpha, i, beta) * kernelFunction(z,xi,c)
-			#gammaI = gamma[i] * kernelFunction(z,xi,c)
 			gammaI = gamma[i] * k[i][0]
 			numerator += gammaI * xi
 			denom += gammaI
@@ -113,13 +121,13 @@ def calcZ(alpha, data, x, kernelFunction, c,z0):
 	print "iters:", iters
 	return z
 
-def calcGammaI(alpha, i, data, x, kernelFunction, c):
-	''' returns gamma_i = sum_{k=1}^n Beta_k * alpha_i^k '''
-	gammaI = 0
-	alphaI = alpha.T[i]
-	for k, alphaKI in enumerate(alphaI):
-		gammaI += calcBetaK(alpha[k], kernelFunction, data, x, c) * alphaKI
-	return gammaI
+#def calcGammaI(alpha, i, data, x, kernelFunction, c):
+#	''' returns gamma_i = sum_{k=1}^n Beta_k * alpha_i^k '''
+#	gammaI = 0
+#	alphaI = alpha.T[i]
+#	for k, alphaKI in enumerate(alphaI):
+#		gammaI += calcBetaK(alpha[k], kernelFunction, data, x, c) * alphaKI
+#	return gammaI
 
 def calcGammaIOpt(alpha, i, beta):
 	''' returns gamma_i = sum_{k=1}^n beta_k * alpha_i^k '''
@@ -136,7 +144,8 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	l = len(Data)
 
 	# build K
-	K = createK(Data, kernelFunction, c)
+	#K = createK(Data, kernelFunction, c)
+	K = createK(Data, c)
 
 	# center K
 	K = centerK(K)
@@ -144,14 +153,14 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	# find eigen vectors
 	lLambda, alpha = np.linalg.eigh(K) # (3)
 	lambdas = lLambda/l # /l with the notation from the paper (but not murphys) 
-	# drop negative and 0 egienvalues and their vectors
+	# drop negative and 0 eigenvalues and their vectors
 	for i,l in enumerate(lambdas):
 		if l > 10**(-8):
 			lambdas = lambdas[i:]
 			alpha = alpha[i:]
 			break
 
-	# use only the 4 larges eigen values with corresponding vectors
+	# use only the components largest eigenvalues with corresponding vectors
 	lambdas= lambdas[-components:]
 	alpha= alpha[-components:]
 
@@ -161,7 +170,7 @@ def kernelPCADeNoise(kernelFunction, c, components, dataTrain, dataTest):
 	Z =[]
 	for i in range(len(dataTest)):
 		print i
-		Z.append(calcZ(alpha, Data, dataTest[i],kernelFunction,c,dataTest[i]))
+		Z.append(calcZ(alpha, Data, dataTest[i], K, c, dataTest[i], i))
 
 	Z=np.array(Z)
 	return Z

@@ -104,7 +104,7 @@ def genCircleData(points):
 if __name__ == '__main__':
 
 	# hyperparameters
-	c = 0.54 # optimal for 4 components : 1.1
+	c = 0.595 # optimal for 4 components : 1.1
 
 	# For half-circle toy example
 	#X, y = make_circles(n_samples=400, factor=.3, noise=.05)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 	Xtrain = X
 	# For square toy example
 
-	Xtrain = genSquareData3(300, 0.4)
+	Xtrain = genSquareData3(1200, 0.4)
 	XtrainMean = np.mean(Xtrain, axis=0)
 	Xtrain -= XtrainMean
 	Xtest = Xtrain#genGridData(20**2)
